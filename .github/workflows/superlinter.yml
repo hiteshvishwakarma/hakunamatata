@@ -1,17 +1,57 @@
-name: Super-Linter
+name: Super-Linter and Cypress CI for Frontend
 
-on: push
+# Trigger the workflow only on push events to the 'develop' branch
+on:
+  push:
+    branches:
+      - develop
 
+# Define the jobs
 jobs:
-  super-lint:
-    name: Lint code base
+  lint-and-test:
+    # Specify the OS to run the tests on
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
 
+    steps:
+      # Step 1: Check out the code from the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Run Super-Linter
       - name: Run Super-Linter
-        uses: github/super-linter@v4
+        uses: github/super-linter@v5
         env:
-          DEFAULT_BRANCH: main
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: true # Validate all files in the codebase
+          DEFAULT_BRANCH: develop     # Set the default branch
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Required for the action
+
+      # Step 3: Set up Node.js for the React project
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16' # Use a version compatible with your project
+          cache: 'npm'
+
+      # Step 4: Install project dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Step 5: Build the React app (if necessary for your tests)
+      - name: Build Frontend
+        run: npm run build
+
+      # Step 6: Install Cypress dependencies
+      - name: Install Cypress
+        run: npm install cypress --save-dev
+
+      # Step 7: Run Cypress tests
+      - name: Run Cypress Tests
+        run: npx cypress run
+
+      # Step 8: Archive Cypress test results (optional)
+      - name: Archive Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-results
+          path: cypress/videos/
