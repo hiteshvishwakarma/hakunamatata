@@ -1,50 +1,66 @@
-name: Super-Linter and Cypress CI for Frontend
+name: Deploy and Test
 
-# Trigger the workflow only on push events to the 'develop' branch
 on:
   push:
     branches:
-      - staging2
+      - staging3
 
-# Define the jobs
 jobs:
-  lint-and-test:
-    # Specify the OS to run the tests on
+  deploy-to-vercel:
+    name: Deploy to Vercel
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out the code from the repository
-      - name: Checkout Code
+      - name: Checkout Frontend Code
         uses: actions/checkout@v3
 
-      # Step 2: Run Super-Linter
-      - name: Run Super-Linter
-        uses: github/super-linter@v5
-        env:
-          VALIDATE_ALL_CODEBASE: true # Validate all files in the codebase
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Required for the action
-
-      # Step 3: Set up Node.js for the React project
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16' # Use a version compatible with your project
+          node-version: '16'
           cache: 'npm'
 
-      # Step 4: Install project dependencies
-      - name: Install Dependencies
+      - name: Install Frontend Dependencies
         run: npm install
 
-      # Step 5: Build the React app (if necessary for your tests)
       - name: Build Frontend
         run: npm run build
 
-      # Step 6: Install Cypress dependencies
       - name: Deploy to Vercel
+        id: vercel-deploy
         uses: amondnet/vercel-action@v20
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }} # Optional if you're part of a team
+          vercel-org-id: ${{ secrets.VERCEL_TEAM_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: . # Adjust if your frontend is in a subdirectory
-          prod: false # Set to `false` for staging deploymentev
+          prod: false
+
+
+  run-cypress-tests:
+    name: Run Cypress Tests
+    runs-on: ubuntu-latest
+    needs: deploy-to-vercel
+
+    steps:
+      - name: Checkout Cypress Repository
+        uses: actions/checkout@v3
+        with:
+          repository: https://github.com/hiteshvishwakarma/circuit
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          path: cypress-tests
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+
+      - name: Install Cypress Dependencies
+        run: npm install
+        working-directory: cypress
+
+      - name: Run Cypress Tests
+        run: npx cypress run
+        working-directory: cypress
+        env:
+          CYPRESS_BASE_URL: ${{ secrets.CYPRESS_BASE_URL }}
